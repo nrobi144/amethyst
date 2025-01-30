@@ -7,6 +7,8 @@ plugins {
     alias(libs.plugins.diffplugSpotless)
     alias(libs.plugins.googleServices) apply false
     alias(libs.plugins.jetbrainsComposeCompiler) apply false
+    alias(libs.plugins.kotlinAndroid) apply false
+    alias(libs.plugins.kotlinMultiplatform) apply false
 }
 
 allprojects {
