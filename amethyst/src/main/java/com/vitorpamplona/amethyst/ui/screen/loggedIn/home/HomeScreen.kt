@@ -56,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vitorpamplona.amethyst.Amethyst
 import com.vitorpamplona.amethyst.R
 import com.vitorpamplona.amethyst.model.AROUND_ME
+import com.vitorpamplona.amethyst.model.CHESS
 import com.vitorpamplona.amethyst.model.emphChat.EphemeralChatChannel
 import com.vitorpamplona.amethyst.model.nip53LiveActivities.LiveActivitiesChannel
 import com.vitorpamplona.amethyst.service.OnlineChecker
@@ -234,17 +235,23 @@ fun HomeScreenFloatingButton(
         accountViewModel.account.settings.defaultHomeFollowList
             .collectAsStateWithLifecycle()
 
-    if (list.value == AROUND_ME) {
-        val location by Amethyst.instance.locationManager.geohashStateFlow
-            .collectAsStateWithLifecycle()
+    when (list.value) {
+        AROUND_ME -> {
+            val location by Amethyst.instance.locationManager.geohashStateFlow
+                .collectAsStateWithLifecycle()
 
-        when (val myLocation = location) {
-            is LocationState.LocationResult.Success -> NewGeoPostButton(myLocation.geoHash.toString(), accountViewModel, nav)
-            is LocationState.LocationResult.LackPermission -> { }
-            is LocationState.LocationResult.Loading -> { }
+            when (val myLocation = location) {
+                is LocationState.LocationResult.Success -> NewGeoPostButton(myLocation.geoHash.toString(), accountViewModel, nav)
+                is LocationState.LocationResult.LackPermission -> { }
+                is LocationState.LocationResult.Loading -> { }
+            }
         }
-    } else {
-        NewNoteButton(nav)
+        CHESS -> {
+            NewChessGameButton(accountViewModel, nav)
+        }
+        else -> {
+            NewNoteButton(nav)
+        }
     }
 }
 
