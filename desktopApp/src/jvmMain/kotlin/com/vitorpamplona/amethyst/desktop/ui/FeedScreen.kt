@@ -45,7 +45,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,7 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.vitorpamplona.amethyst.commons.state.EventCollectionState
+import com.vitorpamplona.amethyst.commons.model.Note
 import com.vitorpamplona.amethyst.commons.ui.components.EmptyState
 import com.vitorpamplona.amethyst.commons.ui.components.LoadingState
 import com.vitorpamplona.amethyst.desktop.DesktopPreferences
@@ -66,32 +65,31 @@ import com.vitorpamplona.amethyst.desktop.subscriptions.DesktopRelaySubscription
 import com.vitorpamplona.amethyst.desktop.subscriptions.FeedMode
 import com.vitorpamplona.amethyst.desktop.subscriptions.FilterBuilders
 import com.vitorpamplona.amethyst.desktop.subscriptions.SubscriptionConfig
-import com.vitorpamplona.amethyst.desktop.subscriptions.createBatchMetadataSubscription
 import com.vitorpamplona.amethyst.desktop.subscriptions.createContactListSubscription
 import com.vitorpamplona.amethyst.desktop.subscriptions.createFollowingFeedSubscription
 import com.vitorpamplona.amethyst.desktop.subscriptions.createGlobalFeedSubscription
-import com.vitorpamplona.amethyst.desktop.subscriptions.createReactionsSubscription
-import com.vitorpamplona.amethyst.desktop.subscriptions.createRepliesSubscription
-import com.vitorpamplona.amethyst.desktop.subscriptions.createRepostsSubscription
-import com.vitorpamplona.amethyst.desktop.subscriptions.createZapsSubscription
 import com.vitorpamplona.amethyst.desktop.subscriptions.rememberSubscription
 import com.vitorpamplona.amethyst.desktop.ui.note.NoteCard
 import com.vitorpamplona.quartz.nip01Core.core.Event
-import com.vitorpamplona.quartz.nip01Core.metadata.MetadataEvent
 import com.vitorpamplona.quartz.nip02FollowList.ContactListEvent
-import com.vitorpamplona.quartz.nip18Reposts.RepostEvent
-import com.vitorpamplona.quartz.nip25Reactions.ReactionEvent
 import com.vitorpamplona.quartz.nip51Lists.bookmarkList.BookmarkListEvent
-import com.vitorpamplona.quartz.nip57Zaps.LnZapEvent
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
+data class LightboxState(
+    val urls: List<String>,
+    val index: Int,
+    val seekPosition: Float = 0f,
+    val fullscreen: Boolean = false,
+)
+
 /**
- * Note card with action buttons.
+ * Note card that reads counts from the Note model (cache-backed).
+ * No longer requires per-screen zap/reaction/reply state maps.
  */
 @Composable
 fun FeedNoteCard(
-    event: Event,
+    note: Note,
     relayManager: DesktopRelayConnectionManager,
     localCache: DesktopLocalCache,
     account: AccountState.LoggedIn?,
@@ -100,15 +98,11 @@ fun FeedNoteCard(
     onZapFeedback: (ZapFeedback) -> Unit,
     onNavigateToProfile: (String) -> Unit = {},
     onNavigateToThread: (String) -> Unit = {},
-    zapReceipts: List<ZapReceipt> = emptyList(),
-    reactionCount: Int = 0,
-    replyCount: Int = 0,
-    repostCount: Int = 0,
     bookmarkList: BookmarkListEvent? = null,
     isBookmarked: Boolean = false,
     onBookmarkChanged: (BookmarkListEvent) -> Unit = {},
 ) {
-    val zapAmountSats = zapReceipts.sumOf { it.amountSats }
+    val event = note.event ?: return
 
     Column(
         modifier =
@@ -132,12 +126,12 @@ fun FeedNoteCard(
                 onReplyClick = onReply,
                 onZapFeedback = onZapFeedback,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                zapCount = zapReceipts.size,
-                zapAmountSats = zapAmountSats,
-                zapReceipts = zapReceipts,
-                reactionCount = reactionCount,
-                replyCount = replyCount,
-                repostCount = repostCount,
+                zapCount = note.zaps.size,
+                zapAmountSats = note.zapsAmount.toLong(),
+                zapReceipts = emptyList(), // ZapReceipt conversion deferred
+                reactionCount = note.countReactions(),
+                replyCount = note.replies.size,
+                repostCount = note.boosts.size,
                 bookmarkList = bookmarkList,
                 isBookmarked = isBookmarked,
                 onBookmarkChanged = onBookmarkChanged,
@@ -160,37 +154,16 @@ fun FeedScreen(
     onZapFeedback: (ZapFeedback) -> Unit = {},
 ) {
     val connectedRelays by relayManager.connectedRelays.collectAsState()
-    // Configured relay URLs only — stabilized with distinctUntilChanged() to prevent
-    // subscription churn from relay status changes (pings, connect/disconnect).
-    // openReqSubscription connects relays on demand; no need to wait for connectedRelays.
     val configuredRelays by remember {
         relayManager.relayStatuses
             .map { it.keys }
             .distinctUntilChanged()
     }.collectAsState(emptySet())
     val scope = rememberCoroutineScope()
-    val eventState =
-        remember {
-            EventCollectionState<Event>(
-                getId = { it.id },
-                sortComparator = compareByDescending { it.createdAt },
-                maxSize = 200,
-                scope = scope,
-            )
-        }
-    val events by eventState.items.collectAsState()
+
     var replyToEvent by remember { mutableStateOf<Event?>(null) }
     var feedMode by remember { mutableStateOf(initialFeedMode ?: DesktopPreferences.feedMode) }
     var followedUsers by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var zapsByEvent by remember { mutableStateOf<Map<String, List<ZapReceipt>>>(emptyMap()) }
-    // Track reaction event IDs per target event to deduplicate
-    var reactionIdsByEvent by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
-    val reactionsByEvent = reactionIdsByEvent.mapValues { it.value.size }
-    // Track reply/repost event IDs per target event to deduplicate
-    var replyIdsByEvent by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
-    val repliesByEvent = replyIdsByEvent.mapValues { it.value.size }
-    var repostIdsByEvent by remember { mutableStateOf<Map<String, Set<String>>>(emptyMap()) }
-    val repostsByEvent = repostIdsByEvent.mapValues { it.value.size }
     var bookmarkList by remember { mutableStateOf<BookmarkListEvent?>(null) }
     var bookmarkedEventIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
@@ -198,16 +171,30 @@ fun FeedScreen(
     var eoseReceivedCount by remember { mutableStateOf(0) }
     val initialLoadComplete = eoseReceivedCount > 0
 
+    // Get notes from cache — filtered by kind 1, sorted by createdAt desc
+    // This is a simple approach: query cache on each recomposition.
+    // The FeedViewModel approach (Phase 3 full) would make this reactive via event stream.
+    val feedNotes =
+        remember(localCache.notes.size(), feedMode, followedUsers, eoseReceivedCount) {
+            val allNotes = localCache.notes.filterIntoSet { _, note -> note.event?.kind == 1 }
+            val filtered =
+                if (feedMode == FeedMode.FOLLOWING && followedUsers.isNotEmpty()) {
+                    allNotes.filter { it.author?.pubkeyHex in followedUsers }
+                } else {
+                    allNotes.toList()
+                }
+            filtered.sortedByDescending { it.createdAt() ?: 0 }.take(2500)
+        }
+
     // Load followed users for Following feed mode
     rememberSubscription(configuredRelays, account, feedMode, relayManager = relayManager) {
         if (configuredRelays.isNotEmpty() && account != null && feedMode == FeedMode.FOLLOWING) {
             createContactListSubscription(
                 relays = configuredRelays,
                 pubKeyHex = account.pubKeyHex,
-                onEvent = { event, _, relay, _ ->
+                onEvent = { event, _, _, _ ->
                     if (event is ContactListEvent) {
-                        val follows = event.verifiedFollowKeySet()
-                        followedUsers = follows
+                        followedUsers = event.verifiedFollowKeySet()
                     }
                 },
             )
@@ -233,7 +220,6 @@ fun FeedScreen(
                 onEvent = { event, _, _, _ ->
                     if (event is BookmarkListEvent) {
                         bookmarkList = event
-                        // Extract public bookmarked event IDs
                         val pubIds =
                             event
                                 .publicBookmarks()
@@ -250,13 +236,12 @@ fun FeedScreen(
         }
     }
 
-    // Clear events and reset EOSE when feed mode changes
+    // Reset EOSE when feed mode changes
     remember(feedMode) {
-        eventState.clear()
         eoseReceivedCount = 0
     }
 
-    // Subscribe to feed based on mode
+    // Subscribe to feed — route ALL events through cache via coordinator
     rememberSubscription(configuredRelays, feedMode, followedUsers, relayManager = relayManager) {
         if (configuredRelays.isEmpty()) {
             return@rememberSubscription null
@@ -266,12 +251,8 @@ fun FeedScreen(
             FeedMode.GLOBAL -> {
                 createGlobalFeedSubscription(
                     relays = configuredRelays,
-                    onEvent = { event, _, _, _ ->
-                        // Store metadata events in cache
-                        if (event is MetadataEvent) {
-                            localCache.consumeMetadata(event)
-                        }
-                        eventState.addItem(event)
+                    onEvent = { event, _, relay, _ ->
+                        subscriptionsCoordinator?.consumeEvent(event, relay)
                     },
                     onEose = { _, _ ->
                         eoseReceivedCount++
@@ -284,12 +265,8 @@ fun FeedScreen(
                     createFollowingFeedSubscription(
                         relays = configuredRelays,
                         followedUsers = followedUsers.toList(),
-                        onEvent = { event, _, _, _ ->
-                            // Store metadata events in cache
-                            if (event is MetadataEvent) {
-                                localCache.consumeMetadata(event)
-                            }
-                            eventState.addItem(event)
+                        onEvent = { event, _, relay, _ ->
+                            subscriptionsCoordinator?.consumeEvent(event, relay)
                         },
                         onEose = { _, _ ->
                             eoseReceivedCount++
@@ -300,183 +277,6 @@ fun FeedScreen(
                 }
             }
         }
-    }
-
-    // Subscribe to zaps for visible events
-    val eventIds = events.map { it.id }
-    rememberSubscription(configuredRelays, eventIds, relayManager = relayManager) {
-        if (configuredRelays.isEmpty() || eventIds.isEmpty()) {
-            return@rememberSubscription null
-        }
-
-        createZapsSubscription(
-            relays = configuredRelays,
-            eventIds = eventIds,
-            onEvent = { event, _, _, _ ->
-                if (event is LnZapEvent) {
-                    val receipt = event.toZapReceipt(localCache) ?: return@createZapsSubscription
-                    val targetEventId = event.zappedPost().firstOrNull() ?: return@createZapsSubscription
-                    zapsByEvent =
-                        zapsByEvent.toMutableMap().apply {
-                            val existing = this[targetEventId] ?: emptyList()
-                            if (existing.none { it.createdAt == receipt.createdAt && it.senderPubKey == receipt.senderPubKey }) {
-                                this[targetEventId] = existing + receipt
-                            }
-                        }
-                }
-            },
-        )
-    }
-
-    // Subscribe to metadata for zap senders (to show display names)
-    val zapSenderPubkeys =
-        zapsByEvent.values
-            .flatten()
-            .map { it.senderPubKey }
-            .distinct()
-    rememberSubscription(configuredRelays, zapSenderPubkeys, relayManager = relayManager) {
-        if (configuredRelays.isEmpty() || zapSenderPubkeys.isEmpty()) {
-            return@rememberSubscription null
-        }
-
-        // Only fetch metadata for users we don't have yet
-        val missingPubkeys =
-            zapSenderPubkeys.filter { pubkey ->
-                localCache
-                    .getUserIfExists(pubkey)
-                    ?.metadataOrNull()
-                    ?.flow
-                    ?.value == null
-            }
-        if (missingPubkeys.isEmpty()) {
-            return@rememberSubscription null
-        }
-
-        createBatchMetadataSubscription(
-            relays = configuredRelays,
-            pubKeyHexList = missingPubkeys,
-            onEvent = { event, _, _, _ ->
-                if (event is MetadataEvent) {
-                    localCache.consumeMetadata(event)
-                }
-            },
-        )
-    }
-
-    // Subscribe to reactions for visible events
-    rememberSubscription(configuredRelays, eventIds, relayManager = relayManager) {
-        if (configuredRelays.isEmpty() || eventIds.isEmpty()) {
-            return@rememberSubscription null
-        }
-
-        createReactionsSubscription(
-            relays = configuredRelays,
-            eventIds = eventIds,
-            onEvent = { event, _, _, _ ->
-                if (event is ReactionEvent) {
-                    val targetEventId = event.originalPost().firstOrNull() ?: return@createReactionsSubscription
-                    reactionIdsByEvent =
-                        reactionIdsByEvent.toMutableMap().apply {
-                            val existing = this[targetEventId] ?: emptySet()
-                            this[targetEventId] = existing + event.id
-                        }
-                }
-            },
-        )
-    }
-
-    // Subscribe to replies for visible events
-    rememberSubscription(configuredRelays, eventIds, relayManager = relayManager) {
-        if (configuredRelays.isEmpty() || eventIds.isEmpty()) {
-            return@rememberSubscription null
-        }
-
-        createRepliesSubscription(
-            relays = configuredRelays,
-            eventIds = eventIds,
-            onEvent = { event, _, _, _ ->
-                // Find the event this is replying to
-                val replyToId =
-                    event.tags
-                        .filter { it.size >= 2 && it[0] == "e" }
-                        .lastOrNull()
-                        ?.get(1) ?: return@createRepliesSubscription
-                if (replyToId in eventIds) {
-                    replyIdsByEvent =
-                        replyIdsByEvent.toMutableMap().apply {
-                            val existing = this[replyToId] ?: emptySet()
-                            this[replyToId] = existing + event.id
-                        }
-                }
-            },
-        )
-    }
-
-    // Subscribe to reposts for visible events
-    rememberSubscription(configuredRelays, eventIds, relayManager = relayManager) {
-        if (configuredRelays.isEmpty() || eventIds.isEmpty()) {
-            return@rememberSubscription null
-        }
-
-        createRepostsSubscription(
-            relays = configuredRelays,
-            eventIds = eventIds,
-            onEvent = { event, _, _, _ ->
-                if (event is RepostEvent) {
-                    val targetEventId = event.boostedEventId() ?: return@createRepostsSubscription
-                    repostIdsByEvent =
-                        repostIdsByEvent.toMutableMap().apply {
-                            val existing = this[targetEventId] ?: emptySet()
-                            this[targetEventId] = existing + event.id
-                        }
-                }
-            },
-        )
-    }
-
-    // Subscribe to metadata for note authors (to enable zaps and populate search cache)
-    val authorPubkeys = events.map { it.pubKey }.distinct()
-
-    // Use coordinator for rate-limited metadata loading (preferred)
-    LaunchedEffect(authorPubkeys, subscriptionsCoordinator) {
-        if (subscriptionsCoordinator != null && authorPubkeys.isNotEmpty()) {
-            subscriptionsCoordinator.loadMetadataForPubkeys(authorPubkeys)
-        }
-    }
-
-    // Fallback subscription if coordinator not available
-    rememberSubscription(configuredRelays, authorPubkeys, subscriptionsCoordinator, relayManager = relayManager) {
-        // Skip if using coordinator
-        if (subscriptionsCoordinator != null) {
-            return@rememberSubscription null
-        }
-
-        if (configuredRelays.isEmpty() || authorPubkeys.isEmpty()) {
-            return@rememberSubscription null
-        }
-
-        // Only fetch metadata for users we don't have yet
-        val missingPubkeys =
-            authorPubkeys.filter { pubkey ->
-                localCache
-                    .getUserIfExists(pubkey)
-                    ?.metadataOrNull()
-                    ?.flow
-                    ?.value == null
-            }
-        if (missingPubkeys.isEmpty()) {
-            return@rememberSubscription null
-        }
-
-        createBatchMetadataSubscription(
-            relays = configuredRelays,
-            pubKeyHexList = missingPubkeys,
-            onEvent = { event, _, _, _ ->
-                if (event is MetadataEvent) {
-                    localCache.consumeMetadata(event)
-                }
-            },
-        )
     }
 
     @OptIn(ExperimentalLayoutApi::class)
@@ -567,9 +367,9 @@ fun FeedScreen(
             LoadingState("Connecting to relays...")
         } else if (feedMode == FeedMode.FOLLOWING && followedUsers.isEmpty()) {
             LoadingState("Loading followed users...")
-        } else if (events.isEmpty() && !initialLoadComplete) {
+        } else if (feedNotes.isEmpty() && !initialLoadComplete) {
             LoadingState("Loading notes...")
-        } else if (events.isEmpty() && initialLoadComplete) {
+        } else if (feedNotes.isEmpty() && initialLoadComplete) {
             EmptyState(
                 title =
                     if (feedMode == FeedMode.FOLLOWING) {
@@ -589,24 +389,19 @@ fun FeedScreen(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // Use distinctBy to prevent duplicate key crashes from events with same ID
-                items(events.distinctBy { it.id }, key = { it.id }) { event ->
+                items(feedNotes, key = { it.idHex }) { note ->
                     FeedNoteCard(
-                        event = event,
+                        note = note,
                         relayManager = relayManager,
                         localCache = localCache,
                         account = account,
                         nwcConnection = nwcConnection,
-                        onReply = { replyToEvent = event },
+                        onReply = { replyToEvent = note.event },
                         onZapFeedback = onZapFeedback,
                         onNavigateToProfile = onNavigateToProfile,
                         onNavigateToThread = onNavigateToThread,
-                        zapReceipts = zapsByEvent[event.id] ?: emptyList(),
-                        reactionCount = reactionsByEvent[event.id] ?: 0,
-                        replyCount = repliesByEvent[event.id] ?: 0,
-                        repostCount = repostsByEvent[event.id] ?: 0,
                         bookmarkList = bookmarkList,
-                        isBookmarked = bookmarkedEventIds.contains(event.id),
+                        isBookmarked = bookmarkedEventIds.contains(note.idHex),
                         onBookmarkChanged = { newList ->
                             bookmarkList = newList
                             val pubIds =

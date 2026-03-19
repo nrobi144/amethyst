@@ -622,8 +622,12 @@ fun UserProfileScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(events.distinctBy { it.id }, key = { it.id }) { event ->
+                            val note = localCache.getOrCreateNote(event.id)
+                            if (note.event == null) {
+                                note.loadEvent(event, localCache.getOrCreateUser(event.pubKey), emptyList())
+                            }
                             FeedNoteCard(
-                                event = event,
+                                note = note,
                                 relayManager = relayManager,
                                 localCache = localCache,
                                 account = account,
