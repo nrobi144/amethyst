@@ -66,6 +66,8 @@ compose.desktop {
     application {
         mainClass = "com.vitorpamplona.amethyst.desktop.MainKt"
 
+        jvmArgs += "-Xmx2g"
+
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
 

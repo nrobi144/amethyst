@@ -420,6 +420,14 @@ fun App(
             )
         }
 
+    // Clear cache and subscriptions on logout
+    LaunchedEffect(accountState) {
+        if (accountState is AccountState.LoggedOut) {
+            subscriptionsCoordinator.clear()
+            localCache.clear()
+        }
+    }
+
     // Try to load saved account on startup
     DisposableEffect(Unit) {
         relayManager.addDefaultRelays()
