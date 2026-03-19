@@ -286,7 +286,8 @@ fun UserProfileScreen(
             createUserPostsSubscription(
                 relays = connectedRelays,
                 pubKeyHex = pubKeyHex,
-                onEvent = { event, _, _, _ ->
+                onEvent = { event, _, relay, _ ->
+                    subscriptionsCoordinator?.consumeEvent(event, relay)
                     eventState.addItem(event)
                 },
                 onEose = { _, _ ->

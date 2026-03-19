@@ -188,7 +188,8 @@ fun BookmarksScreen(
                         FilterBuilders.byIds(publicBookmarkIds),
                     ),
                 relays = connectedRelays,
-                onEvent = { event, _, _, _ ->
+                onEvent = { event, _, relay, _ ->
+                    subscriptionsCoordinator?.consumeEvent(event, relay)
                     publicEventState.addItem(event)
                 },
                 onEose = { _, _ -> },
@@ -209,7 +210,8 @@ fun BookmarksScreen(
                         FilterBuilders.byIds(privateBookmarkIds),
                     ),
                 relays = connectedRelays,
-                onEvent = { event, _, _, _ ->
+                onEvent = { event, _, relay, _ ->
+                    subscriptionsCoordinator?.consumeEvent(event, relay)
                     privateEventState.addItem(event)
                 },
                 onEose = { _, _ -> },
@@ -281,6 +283,10 @@ fun BookmarksScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     items(currentEvents, key = { it.id }) { event ->
+                        val note = localCache.getOrCreateNote(event.id)
+                        if (note.event == null) {
+                            note.loadEvent(event, localCache.getOrCreateUser(event.pubKey), emptyList())
+                        }
                         Column(
                             modifier =
                                 Modifier.clickable {
@@ -300,6 +306,11 @@ fun BookmarksScreen(
                                 onReplyClick = { onNavigateToThread(event.id) },
                                 onZapFeedback = onZapFeedback,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                zapCount = note.zaps.size,
+                                zapAmountSats = note.zapsAmount.toLong(),
+                                reactionCount = note.countReactions(),
+                                replyCount = note.replies.size,
+                                repostCount = note.boosts.size,
                                 isBookmarked = true,
                                 bookmarkList = bookmarkList,
                                 onBookmarkChanged = { newList ->
