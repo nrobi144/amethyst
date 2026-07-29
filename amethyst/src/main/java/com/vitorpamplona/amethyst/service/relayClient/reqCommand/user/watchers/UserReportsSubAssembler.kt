@@ -20,9 +20,9 @@
  */
 package com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.watchers
 
+import com.vitorpamplona.amethyst.commons.model.cache.ICacheProvider
 import com.vitorpamplona.amethyst.commons.model.toHexSet
 import com.vitorpamplona.amethyst.commons.relayClient.eoseManagers.SingleSubEoseManager
-import com.vitorpamplona.amethyst.model.LocalCache
 import com.vitorpamplona.amethyst.model.User
 import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.UserFinderQueryState
 import com.vitorpamplona.amethyst.service.relays.MutableTime
@@ -35,7 +35,7 @@ import com.vitorpamplona.quartz.utils.mapOfSet
 
 class UserReportsSubAssembler(
     client: INostrClient,
-    val cache: LocalCache,
+    val cache: ICacheProvider,
     allKeys: () -> Set<UserFinderQueryState>,
 ) : SingleSubEoseManager<UserFinderQueryState>(client, allKeys) {
     override fun newEose(
@@ -67,7 +67,7 @@ class UserReportsSubAssembler(
 
         val trustedAccountsPerRelay =
             mapOfSet {
-                accounts.map { it.declaredFollowsPerOutboxRelay.value }.forEach {
+                accounts.map { it.declaredFollowsByOutboxRelay() }.forEach {
                     add(it)
                 }
             }

@@ -22,8 +22,8 @@ package com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.loaders
 
 import com.vitorpamplona.amethyst.commons.defaults.DefaultIndexerRelayList
 import com.vitorpamplona.amethyst.commons.defaults.DefaultSearchRelayList
+import com.vitorpamplona.amethyst.commons.model.cache.ICacheProvider
 import com.vitorpamplona.amethyst.commons.relayClient.eoseManagers.BaseEoseManager
-import com.vitorpamplona.amethyst.model.LocalCache
 import com.vitorpamplona.amethyst.model.User
 import com.vitorpamplona.amethyst.service.relayClient.reqCommand.account.follows.pickRelaysToLoadUsers
 import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.UserFinderQueryState
@@ -42,7 +42,7 @@ import com.vitorpamplona.quartz.utils.TimeUtils
 
 class UserOutboxFinderSubAssembler(
     client: INostrClient,
-    val cache: LocalCache,
+    val cache: ICacheProvider,
     val failureTracker: RelayOfflineTracker,
     allKeys: () -> Set<UserFinderQueryState>,
 ) : BaseEoseManager<UserFinderQueryState>(client, allKeys) {

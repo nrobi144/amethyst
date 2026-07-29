@@ -20,10 +20,7 @@
  */
 package com.vitorpamplona.amethyst.service.relayClient.reqCommand.account.follows
 
-import com.vitorpamplona.amethyst.commons.defaults.Constants
-import com.vitorpamplona.amethyst.commons.defaults.DefaultIndexerRelayList
-import com.vitorpamplona.amethyst.commons.defaults.DefaultSearchRelayList
-import com.vitorpamplona.amethyst.model.Account
+import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderAccount
 import com.vitorpamplona.amethyst.model.LocalCache
 import com.vitorpamplona.amethyst.model.User
 import com.vitorpamplona.amethyst.service.relays.EOSEAccountFast
@@ -33,7 +30,7 @@ import com.vitorpamplona.quartz.utils.mapOfSet
 
 fun pickRelaysToLoadUsers(
     users: Set<User>,
-    accounts: Collection<Account>,
+    accounts: Collection<UserFinderAccount>,
     connected: Set<NormalizedRelayUrl>,
     cannotConnectRelays: Set<NormalizedRelayUrl>,
     hasTried: EOSEAccountFast<User>,
@@ -43,27 +40,13 @@ fun pickRelaysToLoadUsers(
     val searchRelays = mutableSetOf<NormalizedRelayUrl>()
     val commonRelays = mutableSetOf<NormalizedRelayUrl>()
 
+    // The per-account default fallbacks (index/search/common) are applied
+    // inside each UserFinderAccount accessor, matching the prior inline logic.
     accounts.forEach { key ->
-        indexRelays.addAll(
-            key.indexerRelayList.flow.value
-                .ifEmpty { DefaultIndexerRelayList },
-        )
-
-        homeRelays.addAll(key.nip65RelayList.allFlowNoDefaults.value)
-        homeRelays.addAll(key.privateStorageRelayList.flow.value)
-        homeRelays.addAll(key.localRelayList.flow.value)
-
-        searchRelays.addAll(key.trustedRelayList.flow.value)
-        searchRelays.addAll(
-            key.searchRelayList.flow.value
-                .ifEmpty { DefaultSearchRelayList },
-        )
-
-        // uses followShared to ignore personal relays when finding users.
-        commonRelays.addAll(
-            key.followSharedOutboxesOrProxy.flow.value
-                .ifEmpty { Constants.eventFinderRelays },
-        )
+        indexRelays.addAll(key.indexRelays())
+        homeRelays.addAll(key.outboxHomeRelays())
+        searchRelays.addAll(key.searchRelays())
+        commonRelays.addAll(key.commonRelays())
     }
 
     return pickRelaysToLoadUsers(

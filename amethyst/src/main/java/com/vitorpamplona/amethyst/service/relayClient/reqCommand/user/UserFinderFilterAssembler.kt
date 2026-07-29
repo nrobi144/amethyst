@@ -21,9 +21,9 @@
 package com.vitorpamplona.amethyst.service.relayClient.reqCommand.user
 
 import androidx.compose.runtime.Stable
+import com.vitorpamplona.amethyst.commons.model.cache.ICacheProvider
 import com.vitorpamplona.amethyst.commons.relayClient.composeSubscriptionManagers.ComposeSubscriptionManager
-import com.vitorpamplona.amethyst.model.Account
-import com.vitorpamplona.amethyst.model.LocalCache
+import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderAccount
 import com.vitorpamplona.amethyst.model.User
 import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.loaders.UserOutboxFinderSubAssembler
 import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.watchers.UserCardsSubAssembler
@@ -36,13 +36,13 @@ import com.vitorpamplona.quartz.nip01Core.relay.client.accessories.RelayOfflineT
 @Stable
 class UserFinderQueryState(
     val user: User,
-    val account: Account,
+    val account: UserFinderAccount,
 )
 
 @Stable
 class UserFinderFilterAssembler(
     client: INostrClient,
-    cache: LocalCache,
+    cache: ICacheProvider,
     failureTracker: RelayOfflineTracker,
 ) : ComposeSubscriptionManager<UserFinderQueryState>() {
     val group =
