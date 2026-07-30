@@ -95,6 +95,7 @@ import com.vitorpamplona.amethyst.commons.model.nip02FollowList.FollowAction
 import com.vitorpamplona.amethyst.commons.model.nip05DnsIdentifiers.namecoin.NamecoinResolveState
 import com.vitorpamplona.amethyst.commons.model.nip25Reactions.ReactionAction
 import com.vitorpamplona.amethyst.commons.nip64Chess.RelaySyncStatus
+import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderFilterAssemblerSubscription
 import com.vitorpamplona.amethyst.commons.richtext.UrlParser
 import com.vitorpamplona.amethyst.commons.search.AdvancedSearchBarState
 import com.vitorpamplona.amethyst.commons.search.QuerySerializer
@@ -268,6 +269,15 @@ private fun FeedNoteCardBody(
     myPubKeyHex: String? = null,
     onFollow: ((String) -> Unit)? = null,
 ) {
+    // Load this note author's metadata (kind 0 + relay lists) only while this
+    // card is composed — i.e. on or near screen. The shared commons finder
+    // coalesces every visible author into batched REQs, giving per-row,
+    // visibility-scoped metadata loading that matches Android's model.
+    val cardAuthor = note.author
+    if (cardAuthor != null) {
+        UserFinderFilterAssemblerSubscription(cardAuthor)
+    }
+
     if (event is PollEvent) {
         DesktopPollCard(
             note = note,
