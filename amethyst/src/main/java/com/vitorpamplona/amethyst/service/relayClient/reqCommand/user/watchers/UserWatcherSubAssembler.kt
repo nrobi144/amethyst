@@ -106,6 +106,7 @@ class UserWatcherSubAssembler(
                 indexRelays,
                 failureTracker.cannotConnectRelays,
                 latestEOSEs,
+                cache.relayHints,
             ).ifEmpty { null }
 
         sub.updateFilters(newFilters?.groupByRelay())

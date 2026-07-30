@@ -157,7 +157,7 @@ class AccountFollowsLoaderSubAssembler(
 
         val connectedRelays = client.connectedRelaysFlow().value
 
-        val perRelay = pickRelaysToLoadUsers(users, accounts, connectedRelays, failureTracker.cannotConnectRelays, hasTried)
+        val perRelay = pickRelaysToLoadUsers(users, accounts, connectedRelays, failureTracker.cannotConnectRelays, hasTried, cache.relayHints)
 
         hasTried.removeEveryoneBut(users)
 

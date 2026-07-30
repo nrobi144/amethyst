@@ -21,10 +21,10 @@
 package com.vitorpamplona.amethyst.service.relayClient.reqCommand.account.follows
 
 import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderAccount
-import com.vitorpamplona.amethyst.model.LocalCache
 import com.vitorpamplona.amethyst.model.User
 import com.vitorpamplona.amethyst.service.relays.EOSEAccountFast
 import com.vitorpamplona.quartz.nip01Core.core.HexKey
+import com.vitorpamplona.quartz.nip01Core.hints.HintIndexer
 import com.vitorpamplona.quartz.nip01Core.relay.normalizer.NormalizedRelayUrl
 import com.vitorpamplona.quartz.utils.mapOfSet
 
@@ -34,6 +34,7 @@ fun pickRelaysToLoadUsers(
     connected: Set<NormalizedRelayUrl>,
     cannotConnectRelays: Set<NormalizedRelayUrl>,
     hasTried: EOSEAccountFast<User>,
+    relayHints: HintIndexer,
 ): Map<NormalizedRelayUrl, Set<HexKey>> {
     val indexRelays = mutableSetOf<NormalizedRelayUrl>()
     val homeRelays = mutableSetOf<NormalizedRelayUrl>()
@@ -58,6 +59,7 @@ fun pickRelaysToLoadUsers(
         commonRelays - cannotConnectRelays,
         cannotConnectRelays,
         hasTried,
+        relayHints,
     )
 }
 
@@ -70,6 +72,7 @@ fun pickRelaysToLoadUsers(
     commonRelays: Set<NormalizedRelayUrl>,
     cannotConnectRelays: Set<NormalizedRelayUrl>,
     hasTried: EOSEAccountFast<User>,
+    relayHints: HintIndexer,
 ): Map<NormalizedRelayUrl, Set<HexKey>> =
     mapOfSet {
         users.forEachIndexed { _, key ->
@@ -88,7 +91,7 @@ fun pickRelaysToLoadUsers(
                 }
             } else {
                 // if not, tries hints first.
-                val hints = key.allUsedRelays() + LocalCache.relayHints.hintsForKey(key.pubkeyHex)
+                val hints = key.allUsedRelays() + relayHints.hintsForKey(key.pubkeyHex)
 
                 val leftToTryOnHints = hints - tried
 

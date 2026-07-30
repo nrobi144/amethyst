@@ -108,6 +108,7 @@ class UserOutboxFinderSubAssembler(
                 connectedRelays,
                 failureTracker.cannotConnectRelays,
                 hasTried,
+                cache.relayHints,
             )
 
         val activeFilters =

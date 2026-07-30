@@ -20,12 +20,12 @@
  */
 package com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.watchers
 
-import com.vitorpamplona.amethyst.model.LocalCache
 import com.vitorpamplona.amethyst.model.User
 import com.vitorpamplona.amethyst.service.relays.EOSEAccountFast
 import com.vitorpamplona.quartz.experimental.nipA3.PaymentTargetsEvent
 import com.vitorpamplona.quartz.marmot.mip00KeyPackages.KeyPackageRelayListEvent
 import com.vitorpamplona.quartz.nip01Core.core.HexKey
+import com.vitorpamplona.quartz.nip01Core.hints.HintIndexer
 import com.vitorpamplona.quartz.nip01Core.metadata.MetadataEvent
 import com.vitorpamplona.quartz.nip01Core.relay.client.pool.RelayBasedFilter
 import com.vitorpamplona.quartz.nip01Core.relay.filters.Filter
@@ -62,6 +62,7 @@ fun filterUserMetadataForKey(
     indexRelays: Set<NormalizedRelayUrl>,
     cannotConnectRelays: Set<NormalizedRelayUrl>,
     since: EOSEAccountFast<User>,
+    relayHints: HintIndexer,
 ): List<RelayBasedFilter> {
     val perRelayUsers =
         mapOfSet {
@@ -70,7 +71,7 @@ fun filterUserMetadataForKey(
                 val relays =
                     when {
                         outbox == null ->
-                            key.allUsedRelays() + LocalCache.relayHints.hintsForKey(key.pubkeyHex) + indexRelays
+                            key.allUsedRelays() + relayHints.hintsForKey(key.pubkeyHex) + indexRelays
                         // Outbox is published but exhausted (every relay either EOSE'd
                         // or is known-unreachable) and metadata is still missing —
                         // widen to indexers so a misconfigured outbox doesn't strand
