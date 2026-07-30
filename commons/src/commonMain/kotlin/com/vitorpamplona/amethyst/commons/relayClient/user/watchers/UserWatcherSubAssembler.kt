@@ -18,13 +18,13 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.watchers
+package com.vitorpamplona.amethyst.commons.relayClient.user.watchers
 
+import com.vitorpamplona.amethyst.commons.model.User
 import com.vitorpamplona.amethyst.commons.model.cache.ICacheProvider
 import com.vitorpamplona.amethyst.commons.relayClient.eoseManagers.BaseEoseManager
-import com.vitorpamplona.amethyst.model.User
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.UserFinderQueryState
-import com.vitorpamplona.amethyst.service.relays.EOSEAccountFast
+import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderQueryState
+import com.vitorpamplona.amethyst.commons.relays.EOSEAccountFast
 import com.vitorpamplona.quartz.nip01Core.core.Event
 import com.vitorpamplona.quartz.nip01Core.relay.client.INostrClient
 import com.vitorpamplona.quartz.nip01Core.relay.client.accessories.RelayOfflineTracker

@@ -18,17 +18,17 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.vitorpamplona.amethyst.service.relayClient.reqCommand.user
+package com.vitorpamplona.amethyst.commons.relayClient.user
 
 import androidx.compose.runtime.Stable
+import com.vitorpamplona.amethyst.commons.model.User
 import com.vitorpamplona.amethyst.commons.model.cache.ICacheProvider
 import com.vitorpamplona.amethyst.commons.relayClient.composeSubscriptionManagers.ComposeSubscriptionManager
 import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderAccount
-import com.vitorpamplona.amethyst.model.User
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.loaders.UserOutboxFinderSubAssembler
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.watchers.UserCardsSubAssembler
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.watchers.UserReportsSubAssembler
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.watchers.UserWatcherSubAssembler
+import com.vitorpamplona.amethyst.commons.relayClient.user.loaders.UserOutboxFinderSubAssembler
+import com.vitorpamplona.amethyst.commons.relayClient.user.watchers.UserCardsSubAssembler
+import com.vitorpamplona.amethyst.commons.relayClient.user.watchers.UserReportsSubAssembler
+import com.vitorpamplona.amethyst.commons.relayClient.user.watchers.UserWatcherSubAssembler
 import com.vitorpamplona.quartz.nip01Core.relay.client.INostrClient
 import com.vitorpamplona.quartz.nip01Core.relay.client.accessories.RelayOfflineTracker
 

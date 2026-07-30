@@ -18,31 +18,11 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.watchers
+package com.vitorpamplona.amethyst.service.relayClient.reqCommand.user
 
-import com.vitorpamplona.quartz.nip01Core.core.HexKey
-import com.vitorpamplona.quartz.nip01Core.relay.client.pool.RelayBasedFilter
-import com.vitorpamplona.quartz.nip01Core.relay.filters.Filter
-import com.vitorpamplona.quartz.nip01Core.relay.normalizer.NormalizedRelayUrl
-import com.vitorpamplona.quartz.nip56Reports.ReportEvent
-
-val ReportKindList = listOf(ReportEvent.KIND)
-
-fun filterReportsToKeysFromTrusted(
-    targets: Set<HexKey>,
-    trustedAccounts: List<HexKey>,
-    relay: NormalizedRelayUrl,
-    since: Long?,
-): RelayBasedFilter? {
-    if (targets.isEmpty() || trustedAccounts.isEmpty()) return null
-    return RelayBasedFilter(
-        relay = relay,
-        filter =
-            Filter(
-                kinds = ReportKindList,
-                authors = trustedAccounts,
-                tags = mapOf("p" to targets.sorted()),
-                since = since,
-            ),
-    )
-}
+// The user-finder subscription assembler + its query state moved to
+// commons.relayClient.user so Desktop (and any KMP front end) can reuse them.
+// These aliases keep the many existing Android call sites — which still import
+// from this package — compiling unchanged.
+typealias UserFinderFilterAssembler = com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderFilterAssembler
+typealias UserFinderQueryState = com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderQueryState

@@ -18,11 +18,11 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.vitorpamplona.amethyst.service.relayClient.reqCommand.account.follows
+package com.vitorpamplona.amethyst.commons.relayClient.user
 
+import com.vitorpamplona.amethyst.commons.model.User
 import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderAccount
-import com.vitorpamplona.amethyst.model.User
-import com.vitorpamplona.amethyst.service.relays.EOSEAccountFast
+import com.vitorpamplona.amethyst.commons.relays.EOSEAccountFast
 import com.vitorpamplona.quartz.nip01Core.core.HexKey
 import com.vitorpamplona.quartz.nip01Core.hints.HintIndexer
 import com.vitorpamplona.quartz.nip01Core.relay.normalizer.NormalizedRelayUrl
