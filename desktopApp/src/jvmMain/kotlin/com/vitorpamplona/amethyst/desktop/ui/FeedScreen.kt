@@ -72,7 +72,6 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -168,8 +167,6 @@ import com.vitorpamplona.quartz.nip88Polls.response.PollResponseEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -761,17 +758,15 @@ fun FeedScreen(
         }
     }
 
-    // Viewport-aware metadata loading: only fetch for visible notes + buffer
-    // Uses snapshotFlow to avoid per-frame recomposition from scroll observation
+    // Reactions + referenced-note (repost/quote) prefetch for the first visible
+    // notes. Author metadata (kind 0) is NOT loaded here anymore: each note row
+    // (FeedNoteCardBody) opens its own composition-scoped UserFinderFilterAssembler
+    // subscription, so metadata loads per-visible-author and tears down off-screen.
     LaunchedEffect(feedState, subscriptionsCoordinator) {
         if (subscriptionsCoordinator == null || feedState !is FeedState.Loaded) return@LaunchedEffect
-        val loadedFeed = feedState as FeedState.Loaded
 
-        // Initial load: batch metadata for first visible notes immediately
         val initialNotes = viewModel.feedState.visibleNotes().take(30)
         if (initialNotes.isNotEmpty()) {
-            val authors = initialNotes.mapNotNull { it.author?.pubkeyHex }.distinct()
-            subscriptionsCoordinator.loadMetadataBatched(authors)
             subscriptionsCoordinator.loadMetadataForNotes(initialNotes)
         }
     }
@@ -998,29 +993,11 @@ fun FeedScreen(
                     val loadedState by state.feed.collectAsState()
                     val lazyListState = homeFeedLazyListState
 
-                    // Viewport-aware scroll observation: fetch metadata for newly visible notes
-                    LaunchedEffect(lazyListState, loadedState) {
-                        if (subscriptionsCoordinator == null) return@LaunchedEffect
-                        val feedList = loadedState.list
-                        if (feedList.isEmpty()) return@LaunchedEffect
-
-                        snapshotFlow {
-                            val info = lazyListState.layoutInfo
-                            if (info.visibleItemsInfo.isEmpty()) return@snapshotFlow -1 to -1
-                            info.visibleItemsInfo.first().index to info.visibleItemsInfo.last().index
-                        }.distinctUntilChanged()
-                            .debounce(500)
-                            .collect { (first, last) ->
-                                if (first < 0) return@collect
-                                val from = (first - 10).coerceAtLeast(0)
-                                val to = (last + 10).coerceAtMost(feedList.lastIndex)
-                                val viewportNotes = feedList.subList(from, to + 1)
-                                val authors = viewportNotes.mapNotNull { it.author?.pubkeyHex }.distinct()
-                                if (authors.isNotEmpty()) {
-                                    subscriptionsCoordinator.loadMetadataBatched(authors)
-                                }
-                            }
-                    }
+                    // (Removed) Viewport-aware scroll observation that batched
+                    // metadata for newly-visible authors. Superseded by per-row
+                    // composition-scoped subscriptions in FeedNoteCardBody: each
+                    // visible card now loads its author's metadata and unsubscribes
+                    // when scrolled off, coalesced into the shared finder's batched REQs.
 
                     val sidePadding = LocalReadingSidePadding.current
                     LazyColumn(
