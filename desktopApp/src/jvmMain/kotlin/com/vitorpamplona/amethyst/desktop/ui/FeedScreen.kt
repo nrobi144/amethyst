@@ -95,6 +95,8 @@ import com.vitorpamplona.amethyst.commons.model.nip05DnsIdentifiers.namecoin.Nam
 import com.vitorpamplona.amethyst.commons.model.nip25Reactions.ReactionAction
 import com.vitorpamplona.amethyst.commons.nip64Chess.RelaySyncStatus
 import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderFilterAssemblerSubscription
+import com.vitorpamplona.amethyst.commons.relayClient.user.observeUserName
+import com.vitorpamplona.amethyst.commons.relayClient.user.observeUserPicture
 import com.vitorpamplona.amethyst.commons.richtext.UrlParser
 import com.vitorpamplona.amethyst.commons.search.AdvancedSearchBarState
 import com.vitorpamplona.amethyst.commons.search.QuerySerializer
@@ -1961,15 +1963,9 @@ private fun ExpandedNoteContent(
     // Get reply notes from cache — recompute when replies change
     val replyNotes = remember(repliesState) { note.replies.sortedByDescending { it.createdAt() } }
 
-    // Load metadata for reply authors
-    LaunchedEffect(replyNotes, subscriptionsCoordinator) {
-        if (subscriptionsCoordinator != null && replyNotes.isNotEmpty()) {
-            val authors = replyNotes.mapNotNull { it.event?.pubKey }.distinct()
-            if (authors.isNotEmpty()) {
-                subscriptionsCoordinator.loadMetadataBatched(authors)
-            }
-        }
-    }
+    // Reply-author metadata (kind 0) is loaded per-row: each CommentItem below
+    // opens its own composition-scoped observeUser* subscription, so metadata
+    // loads for on-screen replies only and tears down when the thread closes.
 
     Column(modifier = Modifier.padding(top = 8.dp)) {
         // Comments card
@@ -2009,24 +2005,26 @@ private fun ExpandedNoteContent(
                 replyNotes.take(5).forEachIndexed { index, replyNote ->
                     val replyEvent = replyNote.event
                     val flowSet = remember(replyNote) { replyNote.flow() }
-                    val metadataState by flowSet.metadata.stateFlow.collectAsState()
                     val reactionsState by flowSet.reactions.stateFlow.collectAsState()
                     val zapsState by flowSet.zaps.stateFlow.collectAsState()
 
                     DisposableEffect(replyNote) { onDispose { replyNote.clearFlow() } }
 
-                    val author =
-                        remember(replyEvent?.pubKey, metadataState) {
-                            replyEvent?.pubKey?.let { localCache.getUserIfExists(it) }
-                        }
+                    // Load + observe this reply author's metadata only while the
+                    // comment row is composed; observeUser* both subscribes and
+                    // drives recomposition when kind-0 arrives.
+                    val replyAuthorPubKey = replyEvent?.pubKey
+                    val author = remember(replyAuthorPubKey, localCache) { replyAuthorPubKey?.let { localCache.getOrCreateUser(it) } }
+                    val authorName = author?.let { observeUserName(it).value }
+                    val authorPicture = author?.let { observeUserPicture(it).value }
                     val reactionCount = remember(reactionsState) { replyNote.countReactions() }
                     val zapAmount = remember(zapsState) { replyNote.zapsAmount }
 
                     CommentItem(
-                        authorName = author?.toBestDisplayName() ?: replyEvent?.pubKey?.take(8) ?: "",
+                        authorName = authorName ?: replyAuthorPubKey?.take(8) ?: "",
                         authorHandle = author?.pubkeyNpub()?.take(16)?.let { "@$it..." } ?: "",
-                        authorAvatarUrl = author?.profilePicture(),
-                        authorPubKeyHex = replyEvent?.pubKey ?: "",
+                        authorAvatarUrl = authorPicture,
+                        authorPubKeyHex = replyAuthorPubKey ?: "",
                         content = replyEvent?.content ?: "",
                         timeAgo = (replyEvent?.createdAt ?: 0L).toTimeAgo(),
                         reactionCount = reactionCount,
