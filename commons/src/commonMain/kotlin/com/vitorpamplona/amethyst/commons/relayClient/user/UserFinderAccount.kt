@@ -59,6 +59,14 @@ interface UserFinderAccount {
     /** Search relays (trusted + search), with the default fallback applied. */
     fun searchRelays(): Set<NormalizedRelayUrl>
 
+    /**
+     * Follow + all-mine + search relays, used by the per-note event-finder to
+     * place "missing event" / "missing addressable" REQs (reactions, zaps,
+     * reposts, replies) when a note references content no relay has yet placed.
+     * Snapshot getter, same contract as the others.
+     */
+    fun followPlusAllMineWithSearchRelays(): Set<NormalizedRelayUrl>
+
     /** Shared-outbox / proxy relays used as the broad common fallback. */
     fun commonRelays(): Set<NormalizedRelayUrl>
 

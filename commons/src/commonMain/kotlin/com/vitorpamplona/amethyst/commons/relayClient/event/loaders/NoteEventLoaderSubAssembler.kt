@@ -18,20 +18,22 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.vitorpamplona.amethyst.service.relayClient.reqCommand.event.loaders
+package com.vitorpamplona.amethyst.commons.relayClient.event.loaders
 
-import com.vitorpamplona.amethyst.service.relayClient.eoseManagers.SingleSubNoEoseCacheEoseManager
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.event.EventFinderQueryState
+import com.vitorpamplona.amethyst.commons.model.cache.ICacheProvider
+import com.vitorpamplona.amethyst.commons.relayClient.eoseManagers.SingleSubNoEoseCacheEoseManager
+import com.vitorpamplona.amethyst.commons.relayClient.event.EventFinderQueryState
 import com.vitorpamplona.quartz.nip01Core.relay.client.INostrClient
 
 class NoteEventLoaderSubAssembler(
     client: INostrClient,
+    val cache: ICacheProvider,
     allKeys: () -> Set<EventFinderQueryState>,
 ) : SingleSubNoEoseCacheEoseManager<EventFinderQueryState>(client, allKeys, invalidateAfterEose = true) {
     override fun updateFilter(keys: List<EventFinderQueryState>) =
         listOfNotNull(
-            filterMissingEvents(keys),
-            filterMissingAddressables(keys),
+            filterMissingEvents(cache, keys),
+            filterMissingAddressables(cache, keys),
         ).flatten()
 
     override fun distinct(key: EventFinderQueryState) = key.note

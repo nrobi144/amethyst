@@ -477,6 +477,8 @@ class Account(
 
     override fun searchRelays(): Set<NormalizedRelayUrl> = (trustedRelayList.flow.value + searchRelayList.flow.value.ifEmpty { DefaultSearchRelayList }).toSet()
 
+    override fun followPlusAllMineWithSearchRelays(): Set<NormalizedRelayUrl> = followPlusAllMineWithSearch.flow.value
+
     override fun commonRelays(): Set<NormalizedRelayUrl> = followSharedOutboxesOrProxy.flow.value.ifEmpty { Constants.eventFinderRelays }
 
     override fun cardHomeRelays(): Set<NormalizedRelayUrl> = homeRelays.flow.value

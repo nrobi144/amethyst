@@ -18,35 +18,38 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.vitorpamplona.amethyst.service.relayClient.reqCommand.event
+package com.vitorpamplona.amethyst.commons.relayClient.event
 
 import androidx.compose.runtime.Stable
+import com.vitorpamplona.amethyst.commons.model.Note
+import com.vitorpamplona.amethyst.commons.model.cache.ICacheProvider
 import com.vitorpamplona.amethyst.commons.relayClient.composeSubscriptionManagers.ComposeSubscriptionManager
-import com.vitorpamplona.amethyst.model.Account
-import com.vitorpamplona.amethyst.model.LocalCache
-import com.vitorpamplona.amethyst.model.Note
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.event.loaders.AddressableAuthorRelayLoaderSubAssembler
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.event.loaders.NoteEventLoaderSubAssembler
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.event.watchers.EventWatcherSubAssembler
-import com.vitorpamplona.amethyst.service.relayClient.reqCommand.user.UserFinderFilterAssembler
+import com.vitorpamplona.amethyst.commons.relayClient.event.loaders.AddressableAuthorRelayLoaderSubAssembler
+import com.vitorpamplona.amethyst.commons.relayClient.event.loaders.NoteEventLoaderSubAssembler
+import com.vitorpamplona.amethyst.commons.relayClient.event.watchers.EventWatcherSubAssembler
+import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderAccount
+import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderFilterAssembler
 import com.vitorpamplona.quartz.nip01Core.relay.client.INostrClient
 
-// This allows multiple screen to be listening to tags, even the same tag
+// This allows multiple screen to be listening to tags, even the same tag.
+// The account is the narrow UserFinderAccount seam (reused from the user-finder):
+// the per-note loaders only need its relay-hint snapshot getters, and the
+// addressable-author bridge feeds the same seam straight into UserFinderQueryState.
 @Stable
 class EventFinderQueryState(
     val note: Note,
-    val account: Account,
+    val account: UserFinderAccount,
 )
 
 @Stable
 class EventFinderFilterAssembler(
     client: INostrClient,
-    cache: LocalCache,
+    cache: ICacheProvider,
     userFinder: UserFinderFilterAssembler,
 ) : ComposeSubscriptionManager<EventFinderQueryState>() {
     val group =
         listOf(
-            NoteEventLoaderSubAssembler(client, ::allKeys),
+            NoteEventLoaderSubAssembler(client, cache, ::allKeys),
             EventWatcherSubAssembler(client, ::allKeys),
             AddressableAuthorRelayLoaderSubAssembler(cache, ::allKeys, userFinder),
         )

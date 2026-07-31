@@ -21,30 +21,28 @@
 package com.vitorpamplona.amethyst.service.relayClient.reqCommand.event
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import com.vitorpamplona.amethyst.commons.relayClient.subscriptions.LifecycleAwareKeyDataSourceSubscription
-import com.vitorpamplona.amethyst.model.Account
 import com.vitorpamplona.amethyst.model.Note
 import com.vitorpamplona.amethyst.ui.screen.loggedIn.AccountViewModel
 
+// The per-note event-finder subscription assembler + its query state moved to
+// commons.relayClient.event so Desktop (and any KMP front end) can reuse them.
+// These aliases + the AccountViewModel overload keep the many existing Android
+// call sites — which still import from this package — compiling unchanged.
+typealias EventFinderFilterAssembler = com.vitorpamplona.amethyst.commons.relayClient.event.EventFinderFilterAssembler
+typealias EventFinderQueryState = com.vitorpamplona.amethyst.commons.relayClient.event.EventFinderQueryState
+
+/**
+ * Android convenience overload: unpacks the [AccountViewModel] into the narrow
+ * account seam ([Account][com.vitorpamplona.amethyst.model.Account] implements
+ * `UserFinderAccount`) and the shared event-finder data source, then delegates
+ * to the commons subscription.
+ */
 @Composable
 fun EventFinderFilterAssemblerSubscription(
     note: Note,
     accountViewModel: AccountViewModel,
-) = EventFinderFilterAssemblerSubscription(note, accountViewModel.account, accountViewModel.dataSources().eventFinder)
-
-@Composable
-fun EventFinderFilterAssemblerSubscription(
-    note: Note,
-    account: Account,
-    dataSource: EventFinderFilterAssembler,
-) {
-    // different screens get different states
-    // even if they are tracking the same tag.
-    val state =
-        remember(note, account) {
-            EventFinderQueryState(note, account)
-        }
-
-    LifecycleAwareKeyDataSourceSubscription(state, dataSource)
-}
+) = com.vitorpamplona.amethyst.commons.relayClient.event.EventFinderFilterAssemblerSubscription(
+    note = note,
+    account = accountViewModel.account,
+    dataSource = accountViewModel.dataSources().eventFinder,
+)

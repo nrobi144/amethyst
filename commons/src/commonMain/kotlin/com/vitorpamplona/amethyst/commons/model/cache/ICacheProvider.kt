@@ -142,5 +142,12 @@ interface ICacheProvider {
      */
     fun getOrCreateUser(pubkey: HexKey): User?
 
+    /**
+     * Like [getOrCreateUser] but tolerant of a malformed key: returns null
+     * instead of throwing when [key] is not a valid pubkey hex. Used by the
+     * per-note event-finder when following pubkey hints parsed out of events.
+     */
+    fun checkGetOrCreateUser(key: HexKey): User? = runCatching { getOrCreateUser(key) }.getOrNull()
+
     fun justConsumeMyOwnEvent(event: Event): Boolean
 }

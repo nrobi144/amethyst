@@ -114,6 +114,11 @@ class DesktopIAccount(
 
     override fun searchRelays(): Set<NormalizedRelayUrl> = relayManager.connectedRelays.value
 
+    // Desktop has no merged follow/mine/search relay-list subsystem; route
+    // missing-event discovery through the connected relays (same degrade path
+    // as the other hints above).
+    override fun followPlusAllMineWithSearchRelays(): Set<NormalizedRelayUrl> = relayManager.connectedRelays.value
+
     override fun commonRelays(): Set<NormalizedRelayUrl> = relayManager.connectedRelays.value
 
     override fun cardHomeRelays(): Set<NormalizedRelayUrl> = nip65RelayList.allFlowNoDefaults.value
