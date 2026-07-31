@@ -94,6 +94,7 @@ import com.vitorpamplona.amethyst.commons.model.nip02FollowList.FollowAction
 import com.vitorpamplona.amethyst.commons.model.nip05DnsIdentifiers.namecoin.NamecoinResolveState
 import com.vitorpamplona.amethyst.commons.model.nip25Reactions.ReactionAction
 import com.vitorpamplona.amethyst.commons.nip64Chess.RelaySyncStatus
+import com.vitorpamplona.amethyst.commons.relayClient.event.EventFinderFilterAssemblerSubscription
 import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderFilterAssemblerSubscription
 import com.vitorpamplona.amethyst.commons.relayClient.user.observeUserName
 import com.vitorpamplona.amethyst.commons.relayClient.user.observeUserPicture
@@ -276,6 +277,11 @@ private fun FeedNoteCardBody(
     if (cardAuthor != null) {
         UserFinderFilterAssemblerSubscription(cardAuthor)
     }
+
+    // Load this note's interactions (reactions / zaps / reposts / replies) only
+    // while the card is composed — the per-note counterpart to the author
+    // subscription above, coalesced into batched REQs by the shared event finder.
+    EventFinderFilterAssemblerSubscription(note)
 
     if (event is PollEvent) {
         DesktopPollCard(
@@ -760,18 +766,10 @@ fun FeedScreen(
         }
     }
 
-    // Reactions + referenced-note (repost/quote) prefetch for the first visible
-    // notes. Author metadata (kind 0) is NOT loaded here anymore: each note row
-    // (FeedNoteCardBody) opens its own composition-scoped UserFinderFilterAssembler
-    // subscription, so metadata loads per-visible-author and tears down off-screen.
-    LaunchedEffect(feedState, subscriptionsCoordinator) {
-        if (subscriptionsCoordinator == null || feedState !is FeedState.Loaded) return@LaunchedEffect
-
-        val initialNotes = viewModel.feedState.visibleNotes().take(30)
-        if (initialNotes.isNotEmpty()) {
-            subscriptionsCoordinator.loadMetadataForNotes(initialNotes)
-        }
-    }
+    // (Removed) initial batched loadMetadataForNotes. Both author metadata and
+    // note interactions (reactions/zaps/reposts/replies) now load per row: each
+    // FeedNoteCardBody opens composition-scoped UserFinder + EventFinder
+    // subscriptions, so they load for on-screen notes only and tear down off-screen.
 
     // Fetch missing referenced notes (repost originals + quoted notes via e-tags)
     // Uses a direct relay subscription — bypasses the coordinator pipeline
@@ -2009,6 +2007,10 @@ private fun ExpandedNoteContent(
                     val zapsState by flowSet.zaps.stateFlow.collectAsState()
 
                     DisposableEffect(replyNote) { onDispose { replyNote.clearFlow() } }
+
+                    // Load this reply's own interactions (reactions/zaps) only
+                    // while the comment row is composed.
+                    EventFinderFilterAssemblerSubscription(replyNote)
 
                     // Load + observe this reply author's metadata only while the
                     // comment row is composed; observeUser* both subscribes and

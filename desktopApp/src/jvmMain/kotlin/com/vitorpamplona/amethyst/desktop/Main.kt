@@ -81,6 +81,7 @@ import com.vitorpamplona.amethyst.commons.moderation.PreferencesHashtagSpamSetti
 import com.vitorpamplona.amethyst.commons.moderation.notifications.PreferencesNotificationReadState
 import com.vitorpamplona.amethyst.commons.moderation.notifications.PreferencesNotificationSettings
 import com.vitorpamplona.amethyst.commons.relayClient.auth.AuthApprovalBanner
+import com.vitorpamplona.amethyst.commons.relayClient.event.LocalEventFinder
 import com.vitorpamplona.amethyst.commons.relayClient.nip17Dm.DmInboxRelayResolver
 import com.vitorpamplona.amethyst.commons.relayClient.nip17Dm.unwrapAndUnsealOrNull
 import com.vitorpamplona.amethyst.commons.relayClient.user.LocalUserFinder
@@ -1458,6 +1459,7 @@ private fun AppInner(
                                 com.vitorpamplona.amethyst.desktop.model.LocalDesktopIAccount provides iAccount,
                                 LocalUserFinder provides subscriptionsCoordinator.userFinder,
                                 LocalUserFinderAccount provides iAccount,
+                                LocalEventFinder provides subscriptionsCoordinator.eventFinder,
                             ) {
                                 val pendingAuthApprovals by authCoordinator.pendingApprovals.collectAsState()
                                 Column(modifier = Modifier.fillMaxSize()) {
@@ -2104,6 +2106,7 @@ fun MainContent(
         com.vitorpamplona.amethyst.desktop.model.LocalDesktopIAccount provides iAccount,
         LocalUserFinder provides subscriptionsCoordinator.userFinder,
         LocalUserFinderAccount provides iAccount,
+        LocalEventFinder provides subscriptionsCoordinator.eventFinder,
         com.vitorpamplona.amethyst.desktop.ui.LocalSnackbarHost provides snackbarHostState,
         com.vitorpamplona.amethyst.desktop.ui.relay.LocalAccountRelays provides accountRelays,
         com.vitorpamplona.amethyst.desktop.ui.deck.LocalDesktopCache provides localCache,

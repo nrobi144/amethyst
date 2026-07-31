@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.vitorpamplona.amethyst.commons.model.EmptyTagList
 import com.vitorpamplona.amethyst.commons.model.ImmutableListOfLists
+import com.vitorpamplona.amethyst.commons.relayClient.event.EventFinderFilterAssemblerSubscription
 import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderFilterAssemblerSubscription
 import com.vitorpamplona.amethyst.commons.richtext.CachedRichTextParser
 import com.vitorpamplona.amethyst.commons.richtext.RichTextParser
@@ -122,6 +123,15 @@ fun NoteCard(
     val noteCardAuthor = remember(note.pubKeyHex, noteCardCache) { noteCardCache?.getOrCreateUser(note.pubKeyHex) }
     if (noteCardAuthor != null) {
         UserFinderFilterAssemblerSubscription(noteCardAuthor)
+    }
+
+    // Load this note's interactions (reactions / zaps / reposts / replies) only
+    // while the card is composed — covers every NoteCard surface (profile, thread,
+    // bookmarks, search, quoted embeds). Guarded on cache presence so previews
+    // (no LocalDesktopCache → no LocalEventFinder) don't hit the provider default.
+    val noteCardNote = remember(note.id, noteCardCache) { noteCardCache?.getNoteIfExists(note.id) }
+    if (noteCardNote != null) {
+        EventFinderFilterAssemblerSubscription(noteCardNote)
     }
 
     val urls = remember(note.content) { UrlParser().parseValidUrls(note.content) }

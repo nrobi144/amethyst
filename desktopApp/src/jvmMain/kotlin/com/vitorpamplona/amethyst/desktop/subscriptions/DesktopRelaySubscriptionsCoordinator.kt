@@ -22,6 +22,7 @@ package com.vitorpamplona.amethyst.desktop.subscriptions
 
 import com.vitorpamplona.amethyst.commons.model.Note
 import com.vitorpamplona.amethyst.commons.relayClient.assemblers.FeedMetadataCoordinator
+import com.vitorpamplona.amethyst.commons.relayClient.event.EventFinderFilterAssembler
 import com.vitorpamplona.amethyst.commons.relayClient.preload.MetadataPreloader
 import com.vitorpamplona.amethyst.commons.relayClient.preload.MetadataRateLimiter
 import com.vitorpamplona.amethyst.commons.relayClient.user.UserFinderFilterAssembler
@@ -100,6 +101,16 @@ class DesktopRelaySubscriptionsCoordinator(
      * REQs — no per-avatar REQ storm.
      */
     val userFinder = UserFinderFilterAssembler(client, localCache, failureTracker)
+
+    /**
+     * The shared, composition-scoped per-note event subscription assembler
+     * (reactions / zaps / reposts / replies, moved to commons). Desktop note
+     * rows reach it via [LocalEventFinder] (provided in Main.kt) and subscribe
+     * per visible note through `EventFinderFilterAssemblerSubscription(note)`, so
+     * interactions load only for on-screen notes. Composes [userFinder] to
+     * resolve authors of not-yet-cached addressable notes.
+     */
+    val eventFinder = EventFinderFilterAssembler(client, localCache, userFinder)
 
     // Rate limiter: 20 requests per second to avoid flooding relays
     private val rateLimiter = MetadataRateLimiter(maxRequestsPerSecond = 20, scope = scope)
